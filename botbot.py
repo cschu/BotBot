@@ -19,8 +19,8 @@ class Bot:
         self.points = []
         self.points_added = 0
 
-        self.logfile = open('bot_logfile.txt', 'w')
-        self.logfile.write("--- %s\n" % self.__class__.__name__)
+        self.logfile = open('bot_logfile.txt', 'w+a')
+        self.logfile.write("\n\n\n ====== %s ====== \n\n" % self.__class__.__name__)
 
         return None
 
@@ -116,19 +116,26 @@ class cjtbot1(Bot):
         else:
             self.logfile.write("------------------------------\n")
             self.logfile.write(": %s\t" % self.cur_round)
-            
+
+           
             #precalc based on dynamic history aka "brain"
-            length=max(min(len(self.my_offers), int(self.var), MAX_BRAIN), MIN_BRAIN) #if var=0 or too large, limit length to [MIN_BRAIN,MAX_BRAIN] entries
-            brain=self.my_offers[-length:]
+            brain=[x for x in self.my_offers if x[1] == "JA"]
+            length=max(min(len(brain), int(self.var), MAX_BRAIN), MIN_BRAIN) #if var=0 or too large, limit length to [MIN_BRAIN,MAX_BRAIN] entries
+            
+            
+            brain=brain[-length:]
+                    
+            for (a,b) in brain:
+                self.logfile.write('%s %s\n' % (a, b))
+            
 
             #get mean and stdev
             (self.std, self.var)=statistics([x[0] for x in brain])
             self.logfile.write("=== brain: %s # µ=%s o=%s ===\n" % (len(brain), self.std, self.var))
 
-
-
-            #
-            offer=300
+            offer = upperquartil(brain)
+            self.logfile.write("=== quart: %s " % offer)
+            
             self.logfile.write(": %s\n" % offer)
 
 
@@ -166,12 +173,31 @@ def statistics(vallist):
     return (s/N, sqrt((s2-(s*s)/N) /N))
 
 
+def upperquartil(vallist):
+
+    if len(vallist)==0:
+        return 0
+    
+    tmplist=[x[0] for x in vallist]
+    total=sum(tmplist)
+    if total==0:
+        return 0
+        
+    sortedvallist=sorted(tmplist)[::-1]
+    
+    s = 0
+    for e in sortedvallist:
+        s += e
+        if s> 0.75*total:
+            return e
+
+    return 0
 
 
 
 def main(argv):
 
-    logfile = open('csbot_logfile.txt', 'w')
+    #~ logfile = open('csbot_logfile.txt', 'w')
     #~ the_bot = Bot()
     the_bot = cjtbot1()
     
@@ -181,7 +207,7 @@ def main(argv):
             break
         data = next.strip()
         
-        logfile.write(": "+ data + '\n')
+        #~ logfile.write(": "+ data + '\n')
 
         data = data.split()
         if len(data) == 2:
@@ -220,7 +246,7 @@ def main(argv):
                 
 
     # print 'DONE'
-    logfile.close()
+    #~ logfile.close()
 
     return None
 
