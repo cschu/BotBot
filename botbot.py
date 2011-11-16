@@ -1,6 +1,10 @@
 #!/usr/bin/python
+# -*- coding: UTF-8 -*-
 
 import sys
+import random
+from math import sqrt
+
 
 DEFAULT_OFFER = 500
 REPLY_POSITIVE = 'JA'
@@ -14,6 +18,10 @@ class Bot:
         self.my_offers = []
         self.points = []
         self.points_added = 0
+
+        self.logfile = open('bot_logfile.txt', 'w')
+        self.logfile.write("--- %s\n" % self.__class__.__name__)
+
         return None
 
     def set_n_rounds(self, n):
@@ -46,23 +54,134 @@ class Bot:
         return None
     
     def postprocess(self):
-        """ ??? """
+        """ !!! """
+        
+      
+
+        
+        self.logfile.close()
         return None
     
+
+
+
+
+class cjtbot0(Bot):
+    """
+    uses static optimum and never defects
+    """ 
+    def make_offer(self):
+        """ find optimal value """
+        offer = 300
+        self.last_offer = offer
+        return '%s' % self.last_offer  
+
+
+
+
+
+
+class cjtbot1(Bot):
+    """
+    tries to find the minimum, yielding in avg the max payoff
+    """ 
     
+    def __init__(self):
+        Bot.__init__(self)
+
+        self.std = 300
+        self.var = 100
+        return None
+
+
+
+    def make_offer(self):
+        """ find optimal value """
+
+        MAX_BRAIN=100
+        MIN_BRAIN=25
+        SWITCH_BEHAV=47
+        DEFAULT_OFFER=300
+        
+        if self.n_rounds<=SWITCH_BEHAV:
+            #too short game for goods statistics
+            offer = DEFAULT_OFFER
+        elif self.cur_round<SWITCH_BEHAV:
+            #start with some test balloons without attracting attention 
+            
+            #TODO: using gaussians?
+            offer = random.randint(0, 19)*25 #in 25 schritten von 0 bis 475
+                
+
+        else:
+            self.logfile.write("------------------------------\n")
+            self.logfile.write(": %s\t" % self.cur_round)
+            
+            #precalc based on dynamic history aka "brain"
+            length=max(min(len(self.my_offers), int(self.var), MAX_BRAIN), MIN_BRAIN) #if var=0 or too large, limit length to [MIN_BRAIN,MAX_BRAIN] entries
+            brain=self.my_offers[-length:]
+
+            #get mean and stdev
+            (self.std, self.var)=statistics([x[0] for x in brain])
+            self.logfile.write("=== brain: %s # µ=%s o=%s ===\n" % (len(brain), self.std, self.var))
+
+
+
+            #
+            offer=300
+            self.logfile.write(": %s\n" % offer)
+
+
+            
+        self.last_offer = offer
+        return '%s' % self.last_offer        
+
+
+
+
+
+    def process_offer(self, offer):
+        reply = REPLY_POSITIVE
+        self.offers.append((offer, reply))
+        return reply
+
+
+
+
+
+
+
+
+
+
+def statistics(vallist):
+    if len(vallist)==0:
+        return (0,0)
+    s2 = 0
+    s = 0
+    N=len(vallist)
+    for e in vallist:
+        s += e
+        s2 += e * e
+    return (s/N, sqrt((s2-(s*s)/N) /N))
+
+
+
+
 
 def main(argv):
 
     logfile = open('csbot_logfile.txt', 'w')
-    the_bot = Bot()
+    #~ the_bot = Bot()
+    the_bot = cjtbot1()
     
     while True:
         next = sys.stdin.readline()
         if not next:
-            break        
+            break
         data = next.strip()
         
-        logfile.write(data + '\n')
+        logfile.write(": "+ data + '\n')
 
         data = data.split()
         if len(data) == 2:
@@ -73,10 +192,10 @@ def main(argv):
                 the_bot.set_cur_round(value)
             elif data[0] == 'ANGEBOT':
                 reply = the_bot.process_offer(value)
-                """ Reaction: Send  JA or NEIN """
+                """ Reaction: Send JA or NEIN """
                 sys.stdout.write('%s\n' % reply)
                 sys.stdout.flush()
-            elif data[0] == 'PUNKTE': 
+            elif data[0] == 'PUNKTE':
                 the_bot.receive_points(value)
         elif len(data) == 1:
             if data[0] == 'START':
@@ -107,3 +226,4 @@ def main(argv):
 
 
 if __name__ == '__main__': main(sys.argv[1:])
+
